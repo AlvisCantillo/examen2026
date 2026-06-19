@@ -4,8 +4,10 @@ import com.pokemon.capturapokemon.dto.*;
 import com.pokemon.capturapokemon.model.*;
 import com.pokemon.capturapokemon.service.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -85,5 +87,49 @@ public class PokemonController {
         return entrenadorService.getUuidByEmail(request.email())
                 .map(uuid -> ResponseEntity.ok(new LoginResponse(uuid)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Listar Pokémon por tipo", description = "Permite listar todos los pokémones de un tipo registrado en el sistema usando el UUID del tipo")
+    @GetMapping("/pokemons/tipo")
+    public ResponseEntity<List<PokemonDto>> getPokemonsByTipo(
+            @Parameter(description = "UUID del tipo de Pokémon") @RequestParam String uuid) {
+        List<PokemonDto> result = pokemonService.getPokemonsByTipoUuid(uuid);
+        if (result.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Registrar un Pokémon", description = "Permite registrar un nuevo Pokémon en el sistema")
+    @PostMapping("/pokemons")
+    public ResponseEntity<PokemonDto> createPokemon(
+            @Parameter(description = "Datos del Pokémon a registrar") @RequestBody CreatePokemonRequest request) {
+        PokemonDto created = pokemonService.createPokemon(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @Operation(summary = "Listar Pokémon de un entrenador", description = "Permite listar todos los pokémones capturados por un entrenador")
+    @GetMapping("/entrenador/{uuid}/pokemon")
+    public ResponseEntity<List<PokemonDto>> getPokemonsByEntrenador(
+            @Parameter(description = "UUID del entrenador") @PathVariable String uuid) {
+        try {
+            List<PokemonDto> result = entrenadorService.getPokemonsByEntrenadorUuid(uuid);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @Operation(summary = "Agregar Pokémon a un entrenador", description = "Permite agregar una lista de pokémones a un entrenador usando sus UUIDs")
+    @PostMapping("/entrenador/{uuid}/pokemon")
+    public ResponseEntity<List<PokemonDto>> addPokemonsToEntrenador(
+            @Parameter(description = "UUID del entrenador") @PathVariable String uuid,
+            @Parameter(description = "Lista de UUIDs de Pokémon a agregar") @RequestBody AddPokemonsToTrainerRequest request) {
+        try {
+            List<PokemonDto> result = entrenadorService.addPokemonsToEntrenador(uuid, request.pokemonUuids());
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
